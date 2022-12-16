@@ -1,0 +1,48 @@
+{
+  "name": "continuous ingestion",
+  "description": "Indexes the whole document corpus with number of clients increasing by time.",
+  "default": true,
+  "schedule": [
+    {
+      "operation": "delete-index"
+    },
+    {
+      "operation": {
+        "operation-type": "create-index",
+        "settings": {{index_settings | default({}) | tojson}}
+      }
+    },
+    {
+      "name": "check-cluster-health",
+      "operation": {
+        "operation-type": "cluster-health",
+        "index": "logs-*",
+        "request-params": {
+          "wait_for_status": "{{cluster_health | default('green')}}",
+          "wait_for_no_relocating_shards": "true"
+        },
+        "retry-until-success": true
+      }
+    },
+    {% for i in range(bulk_total_steps | default(1)) %}
+      {
+        "name": "{{ 'index-append-' + i | string }}",
+        "operation": "index-append",
+        "warmup-time-period": 240,
+
+        {% set total_clients = (num_clients_per_step | default(5)) * (i + 1) %}
+        {% set max_total_clients = bulk_total_clients | default(20) %}
+        {% if total_clients > max_total_clients %}
+        "clients": {{ max_total_clients }}
+        {% else %}
+        "clients": {{ total_clients }}
+        {% endif %}
+
+      },
+    {% endfor %}
+    {
+      "name": "refresh-after-index",
+      "operation": "refresh"
+    }
+  ]
+}
