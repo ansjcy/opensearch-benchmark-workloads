@@ -28,7 +28,7 @@
       {
         "name": "{{ 'index-append-' + i | string }}",
         "operation": "index-append",
-        "warmup-time-period": 240,
+        "warmup-time-period": 10,
 
         {% set total_clients = (num_clients_per_step | default(5)) * (i + 1) %}
         {% set max_total_clients = bulk_total_clients | default(20) %}
